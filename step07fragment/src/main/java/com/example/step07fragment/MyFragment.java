@@ -33,7 +33,7 @@ public class MyFragment extends Fragment implements View.OnClickListener{
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         //1. fragment_my.xml 문서를 전개해서 View 를 만든다음
-        View view=inflater.inflate(R.layout.fragment_my, container);
+        View view=inflater.inflate(R.layout.fragment_my, container, false);
         //만든 View 에서 TextView 의 참조값을 얻어낸다.
         textView=view.findViewById(R.id.textView);
         textView.setOnClickListener(this);
