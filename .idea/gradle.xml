@@ -27,6 +27,7 @@
             <option value="$PROJECT_DIR$/step09gameview" />
             <option value="$PROJECT_DIR$/step10viewpager" />
             <option value="$PROJECT_DIR$/step11bottomnavi" />
+            <option value="$PROJECT_DIR$/step12broadcastreceiver" />
           </set>
         </option>
       </GradleProjectSettings>
