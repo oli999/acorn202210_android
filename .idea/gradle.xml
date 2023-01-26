@@ -30,6 +30,8 @@
             <option value="$PROJECT_DIR$/step12broadcastreceiver" />
             <option value="$PROJECT_DIR$/step13sharedpref" />
             <option value="$PROJECT_DIR$/step14sqlite" />
+            <option value="$PROJECT_DIR$/step15webview" />
+            <option value="$PROJECT_DIR$/step15webview2" />
           </set>
         </option>
       </GradleProjectSettings>
