@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() , Util.RequestListener{
@@ -25,6 +26,15 @@ class MainActivity : AppCompatActivity() , Util.RequestListener{
                     this
             )
         }
+        val getListBtn=findViewById<Button>(R.id.getListBtn);
+        getListBtn.setOnClickListener{
+            Util.sendGetRequest(
+                    1000,
+                    "http://192.168.0.31:9000/boot07/api/list",
+                    mapOf("pageNum" to "1"),
+                    this
+            )
+        }
     }
 
     override fun onSuccess(requestId: Int, result: Map<String, Any?>?) {
@@ -38,7 +48,15 @@ class MainActivity : AppCompatActivity() , Util.RequestListener{
             val isSuccess=obj.getBoolean("isSuccess")
             val response=obj.getString("response")
             val num=obj.getInt("num")
-
+        }else if(requestId == 1000){
+            val jsonStr = result?.get("data").toString();
+            Log.d("#### json 문자열 ####", jsonStr)
+            val arr=JSONArray(jsonStr)
+            //반복문 돌면서 i 값을 0 에서 부터 JSONArray 의 방의 사이즈 - 1 까지 변화 시킨다
+            for(i in 0..arr.length()-1){
+                val tmp = arr.getString(i)
+                Log.d("json array", tmp)
+            }
         }
     }
 
