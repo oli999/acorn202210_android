@@ -5,6 +5,7 @@
       <module name="MyAdroid.test01" target="11" />
       <module name="MyAdroid.test02" target="11" />
       <module name="MyAdroid.test03" target="11" />
+      <module name="MyAdroid.test_login" target="11" />
     </bytecodeTargetLevel>
   </component>
 </project>
