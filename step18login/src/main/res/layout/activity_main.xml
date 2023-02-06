@@ -23,4 +23,21 @@
         android:layout_height="wrap_content"
         android:id="@+id/logout"
         android:text="로그아웃"/>
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/gallery"
+        android:text="겔러리 목록보기"/>
 </LinearLayout>
+
+
+
+
+
+
+
+
+
+
+
+

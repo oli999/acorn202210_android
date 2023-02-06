@@ -1,17 +1,21 @@
 package com.example.step18login;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.View;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.ui.AppBarConfiguration;
+import androidx.navigation.ui.NavigationUI;
 
-import com.example.step18login.databinding.ActivityMainBinding;
-
-import org.json.JSONObject;
+import com.example.step18login.databinding.ActivityGalleryBinding;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -19,42 +23,42 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class GalleryActivity extends AppCompatActivity {
 
-    //activity_main.xml 문서와 대응되는 데이터 type
-    ActivityMainBinding binding;
-    //session id 값을 영구 저장할 SharedPreferences
+    private AppBarConfiguration appBarConfiguration;
+    private ActivityGalleryBinding binding;
+
     SharedPreferences pref;
-    //session id 값을 임시 저장할 필드
     String sessionId;
-    //로그인된 id 값을 저장할 필드
-    String id;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //ActivityMainBinding 객체의 참조값 얻어와서 필드에 저장
-        binding=ActivityMainBinding.inflate(getLayoutInflater());
-        //화면 구성하기
+        //View 바인딩을 이용해서 화면 구성하기
+        binding = ActivityGalleryBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        //로그인 버튼을 누르면
-        binding.login.setOnClickListener(v->{
-            //로그인 액티비티로 이동한다.
-            Intent intent=new Intent(this, LoginActivity.class);
-            startActivity(intent);
+
+        setSupportActionBar(binding.toolbar);
+
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_gallery);
+        appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
+        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+        //우하단의 floating action 버튼을 눌렀을때 동작할 리스너 등록하기
+        binding.fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //Snackbar 에 메세지를 길게 띄우기
+                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
         });
-        //로그아웃 버튼을 누르면
-        binding.logout.setOnClickListener(v->{
-            //로그아웃 액티비티로 이동한다.
-            Intent intent=new Intent(this, LogoutActivity.class);
-            startActivity(intent);
-        });
-        //겔러리 목록 보기 버튼을 누르면
-        binding.gallery.setOnClickListener(v->{
-            //갤러리 액티비티로 이동한다.
-            Intent intent=new Intent(this, GalleryActivity.class);
-            startActivity(intent);
-        });
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_gallery);
+        return NavigationUI.navigateUp(navController, appBarConfiguration)
+                || super.onSupportNavigateUp();
     }
 
     @Override
@@ -64,23 +68,23 @@ public class MainActivity extends AppCompatActivity {
         pref= PreferenceManager.getDefaultSharedPreferences(this);
         //저장된 session id 가 있는지 읽어와 본다 (없다면 기본값 은 빈 문자열)
         sessionId=pref.getString("sessionId", "");
-        //로그인 했는지 여부를 요청해보기
-        new LoginCheckTask().execute(AppContants.BASE_URL+"/logincheck");
+
+        // 겔러리 1 페이지의 데이터 요청 task 실행하기
+        new GalleryListTask().execute(1);
     }
 
-    //로그인 여부를 체크하는 작업을 할 비동기 task
-    class LoginCheckTask extends AsyncTask<String, Void, Boolean> {
+    class GalleryListTask extends AsyncTask<Integer, Void, String>{
 
         @Override
-        protected Boolean doInBackground(String... strings) {
-            //로그인 체크 url
-            String requestUrl=strings[0];
+        protected String doInBackground(Integer... integers) {
+            //겔러리 목록 요청 url
+            String requestUrl=AppContants.BASE_URL+"/gallery/list?pageNum="+integers[0];
             //서버가 http 요청에 대해서 응답하는 문자열을 누적할 객체
             StringBuilder builder=new StringBuilder();
             HttpURLConnection conn=null;
             InputStreamReader isr=null;
             BufferedReader br=null;
-            boolean isLogin=false;
+
             try{
                 //URL 객체 생성
                 URL url=new URL(requestUrl);
@@ -112,6 +116,9 @@ public class MainActivity extends AppCompatActivity {
                             //읽어온 문자열 누적 시키기
                             builder.append(line);
                         }
+                    }else if(responseCode == HttpURLConnection.HTTP_UNAUTHORIZED){//로그인이 안된 상태라면
+                        //예외를 발생시켜서  try~catch~finally  절이 정상 수행되도록 한다.
+                        throw new RuntimeException("로그인이 필요합니다.");
                     }
                 }
                 //서버가 응답한 쿠키 목록을 읽어온다.
@@ -130,26 +137,13 @@ public class MainActivity extends AppCompatActivity {
                             editor.putString("sessionId", sessionId);
                             editor.apply();//apply() 는 비동기로 저장하기 때문에 실행의 흐름이 잡혀 있지 않다(지연이 없음)
                             //필드에도 담아둔다.
-                            MainActivity.this.sessionId=sessionId;
+                            GalleryActivity.this.sessionId=sessionId;
                         }
                     }
                 }
-                //출력받은 문자열 전체 얻어내기
-                JSONObject obj=new JSONObject(builder.toString());
-                /*
-                    {"isLogin":false} or {"isLogin":true, "id":"kimgura"}
-                    서버에서 위와 같은 형식의 json 문자열을 응답할 예정이다.
-                 */
-                Log.d("서버가 응답한 문자열", builder.toString());
-                //로그인 여부를 읽어와서
-                isLogin=obj.getBoolean("isLogin");
-                //만일 로그인을 했다면
-                if(isLogin){
-                    //필드에 로그인된 아이디를 담아둔다.
-                    id=obj.getString("id");
-                }
+
             }catch(Exception e){//예외가 발생하면
-                Log.e("LoginCheckTask", e.getMessage());
+                Log.e("GalleryListTask", e.getMessage());
             }finally {
                 try{
                     if(isr!=null)isr.close();
@@ -157,29 +151,18 @@ public class MainActivity extends AppCompatActivity {
                     if(conn!=null)conn.disconnect();
                 }catch(Exception e){}
             }
-            //로그인 여부를 리턴하면 아래의 onPostExecute() 메소드에 전달된다.
-            return isLogin;
+            //StringBuilder 객체데 담긴 문자열을 리턴해 준다.
+            return builder.toString();
         }
 
         @Override
-        protected void onPostExecute(Boolean isLogin) {
-            super.onPostExecute(isLogin);
-            //여기는 UI 스레드 이기 때문에 UI 와 관련된 작업을 할수 있다.
-            //TextView 에 로그인 여부를 출력하기
-            if(isLogin){
-                binding.userInfo.setText(id+" 님 로그인중...");
-            }else{
-                binding.userInfo.setText("로그인이 필요 합니다.");
-            }
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            //응답된 문자열을 토스트 메세지로 띄워보기
+            Toast.makeText(GalleryActivity.this, s, Toast.LENGTH_LONG).show();
         }
     }
 }
-
-
-
-
-
-
 
 
 
