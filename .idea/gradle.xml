@@ -38,6 +38,9 @@
             <option value="$PROJECT_DIR$/step17httprequest2" />
             <option value="$PROJECT_DIR$/step17httprequest3" />
             <option value="$PROJECT_DIR$/step18login" />
+            <option value="$PROJECT_DIR$/step19callphone" />
+            <option value="$PROJECT_DIR$/step20contentprovider2" />
+            <option value="$PROJECT_DIR$/step21notification" />
           </set>
         </option>
       </GradleProjectSettings>
