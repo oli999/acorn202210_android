@@ -19,7 +19,13 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+/*
+    알림을 띄우기 위해서 필요한 작업
 
+    1. 알림 체널을 만들어야 한다
+    2. 사용자가 직접 알림을 허용하도록 유도 해야 한다.
+    3. AndroidManifest.xml 에 알림 permission 설정이 있어야 한다.
+ */
 public class MainActivity extends AppCompatActivity {
     //알림 체널의 이름 정하기
     public static final String CHANNEL_NAME = "com.example.step21notification.MY_CHANNEL";
@@ -36,7 +42,63 @@ public class MainActivity extends AppCompatActivity {
         notiBtn.setOnClickListener(v -> {
             makeAutoCancelNoti();
         });
+        // 수동 취소 버튼을 눌렀을때 동작
+        Button notiBtn2=findViewById(R.id.notiBtn2);
+        notiBtn2.setOnClickListener(v->{
+            makeManualCancelNoti();
+        });
+
+        //만일 알림이 가능하지 않다면(알림 체널이 만들어져 있지 않다면)
+        if(!NotificationManagerCompat.from(this).areNotificationsEnabled()){
+            //알림 채널을 만든다.
+            createNotificationChannel();
+        }
     }
+    //수동으로 취소하는 알림을 띄우는 메소드
+    public void makeManualCancelNoti(){
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            //권한이 필요한 목록을 배열에 담는다.
+            String[] permissions={Manifest.permission.POST_NOTIFICATIONS};
+            //배열을 전달해서 해당 권한을 부여하도록 요청한다.
+            ActivityCompat.requestPermissions(this,
+                    permissions,
+                    0); //요청의 아이디
+            return;
+        }
+        //입력한 문자열을 읽어온다.
+        String msg = inputMsg.getText().toString();
+        //createNotificationChannel();
+        //알림을 클릭했을때 활성화시킬 액티비티 정보를 담고 있는 Intent 객체
+        Intent intent = new Intent(this, DetailActivity.class);
+        //액티비티를 실행하는데 새로운 테스크에서 실행되도록한다(기존에 onStop() 에 머물러 있다면 제거하고 새로 시작)
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        //인텐트에 msg 라는 키값으로 String type 을 담는다. 새로 시작된 액티비티에서 읽어낼수 있다.
+        intent.putExtra("msg", msg);
+
+        //알림의 아이디 얻어내기
+        int currentId = (int) (System.currentTimeMillis() / 1000);
+        //알림의 아이디를 Intent 객체에 담기
+        intent.putExtra("notiId", currentId);
+
+        //인텐트 전달자 객체
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, currentId, intent, PendingIntent.FLAG_MUTABLE);
+
+        //띄울 알림을 구성하기
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_NAME)
+                .setSmallIcon(android.R.drawable.star_on) //알림의 아이콘
+                .setContentTitle("알림을 취소해 주세요") //알림의 제목
+                .setContentText(msg) //알림의 내용
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT) //알림의 우선순위
+                .setContentIntent(pendingIntent)  //인텐트 전달자 객체
+                .setAutoCancel(false); //자동 취소 되는 알림인지 여부
+
+        //알림 만들기
+        Notification noti=builder.build();
+
+        //알림 메니저를 이용해서 알림을 띄운다.
+        NotificationManagerCompat.from(this).notify(currentId, noti);
+    }
+    //자동으로 취소하는 알림을 띄우는 메소드드
     public void makeAutoCancelNoti(){
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             //권한이 필요한 목록을 배열에 담는다.
@@ -49,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
         }
         //입력한 문자열을 읽어온다.
         String msg = inputMsg.getText().toString();
-        createNotificationChannel();
+        //createNotificationChannel();
         //알림을 클릭했을때 활성화시킬 액티비티 정보를 담고 있는 Intent 객체
         Intent intent = new Intent(this, DetailActivity.class);
         //액티비티를 실행하는데 새로운 테스크에서 실행되도록한다(기존에 onStop() 에 머물러 있다면 제거하고 새로 시작)
@@ -98,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
             NotificationManager notiManager=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
             //알림 체널을 만든다.
             notiManager.createNotificationChannel(channel);
+
         }
 
     }
