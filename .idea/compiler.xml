@@ -1,7 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel target="1.7">
+    <bytecodeTargetLevel target="11">
+      <module name="MyAdroid.step01activity" target="11" />
+      <module name="MyAdroid.step01activity2" target="11" />
+      <module name="MyAdroid.step02layout" target="11" />
+      <module name="MyAdroid.step03view" target="11" />
+      <module name="MyAdroid.step04activitymove" target="11" />
+      <module name="MyAdroid.step05example" target="11" />
+      <module name="MyAdroid.step05listview" target="11" />
+      <module name="MyAdroid.step06customadapter" target="11" />
+      <module name="MyAdroid.step07fragment" target="11" />
+      <module name="MyAdroid.step07fragment2" target="11" />
+      <module name="MyAdroid.step08viewbinding" target="11" />
+      <module name="MyAdroid.step09customview" target="11" />
+      <module name="MyAdroid.step09gameview" target="11" />
+      <module name="MyAdroid.step10viewpager" target="11" />
+      <module name="MyAdroid.step11bottomnavi" target="11" />
+      <module name="MyAdroid.step12broadcastreceiver" target="11" />
+      <module name="MyAdroid.step13sharedpref" target="11" />
+      <module name="MyAdroid.step14sqlite" target="11" />
+      <module name="MyAdroid.step15webview" target="11" />
+      <module name="MyAdroid.step15webview2" target="11" />
+      <module name="MyAdroid.step16asynctask" target="11" />
+      <module name="MyAdroid.step17example" target="11" />
+      <module name="MyAdroid.step17httprequest" target="11" />
+      <module name="MyAdroid.step17httprequest2" target="11" />
+      <module name="MyAdroid.step17httprequest3" target="11" />
+      <module name="MyAdroid.step18login" target="11" />
+      <module name="MyAdroid.step19callphone" target="11" />
+      <module name="MyAdroid.step20contentprovider2" target="11" />
       <module name="MyAdroid.test01" target="11" />
       <module name="MyAdroid.test02" target="11" />
       <module name="MyAdroid.test03" target="11" />
