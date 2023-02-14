@@ -2,9 +2,21 @@ package com.example.step23mp3player;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
+import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -20,6 +32,11 @@ import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPreparedListener {
 
+    //채널의 아이디
+    public static final String CHANNEL_ID="my_channel";
+    //알림의 아이디
+    public static final int NOTI_ID=999;
+
     MediaPlayer mp;
     //재생 준비가 되었는지 여부
     boolean isPrepared=false;
@@ -29,6 +46,12 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
     SeekBar seek;
     //UI 를 주기적으로 업데이트 하기 위한 Handler
     Handler handler=new Handler(){
+        /*
+            이 Handler 에 메세지를 한번만 보내면 아래의 handleMessage() 메소드가
+            1/10 초 마다 반복적으로 호출된다.
+            handleMessage() 메소드는 UI 스레드 상에서 실행되기 때문에
+            마음대로 UI 를 업데이트 할수가 있다.
+         */
         @Override
         public void handleMessage(@NonNull Message msg) {
             int currentTime=mp.getCurrentPosition();
@@ -41,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
                     TimeUnit.MILLISECONDS.toSeconds(currentTime)
                     -TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS. toMinutes(currentTime)) );
             time.setText(info);
+            //알림띄우기
+            makeManualCancelNoti();
             //자신의 객체에 다시 빈 메세제를 보내서 handleMessage() 가 일정시간 이후에 호출 되도록 한다.
             handler.sendEmptyMessageDelayed(0, 100); // 1/10 초 이후에
         }
@@ -68,15 +93,21 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
             if(!isPrepared){
                 return;//메소드를 여기서 종료
             }
-
+            //음악재생 
             mp.start();
-
+            //알림띄우기
+            makeManualCancelNoti();
+            //핸들러에 메세지 보내기
+            handler.sendEmptyMessageDelayed(0, 100);
         });
         //일시 중지 버튼
         ImageButton pauseBtn=findViewById(R.id.pauseBtn);
         pauseBtn.setOnClickListener(v->{
             mp.pause();
         });
+
+        //알림체널만들기
+        createNotificationChannel();
     }
 
     @Override
@@ -113,7 +144,99 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
         seek.setMax(mp.getDuration());
         Log.e("전체 시간", "duration:"+mp.getDuration());
         //Handler 객체에 메세지를 보내서 Handler 가 동작 되도록 한다.
-        handler.sendEmptyMessageDelayed(0, 100);
+        //handler.sendEmptyMessageDelayed(0, 100);
+    }
+    //앱의 사용자가 알림을 직접 관리 할수 있도록 알림 체널을 만들어야한다.
+
+    public void createNotificationChannel(){
+        //알림 체널을 지원하는 기기인지 확인해서
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            //알림 체널을 만들기
+
+            //셈플 데이터
+            String name="Music Player";
+            String text="Control";
+            //알림체널 객체를 얻어내서
+            //알림을 1/10 초마다 새로 보낼 예정이기 때문에 진동은 울리지 않도록 IMPORTANCE_LOW 로 설정한다
+            NotificationChannel channel=
+                    new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW);
+            //체널의 설명을 적고
+            channel.setDescription(text);
+            //알림 메니저 객체를 얻어내서
+            NotificationManager notiManager=(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+            //알림 체널을 만든다.
+            notiManager.createNotificationChannel(channel);
+
+        }
+
+    }
+    //수동으로 취소하는 알림을 띄우는 메소드
+    public void makeManualCancelNoti(){
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            //권한이 필요한 목록을 배열에 담는다.
+            String[] permissions={Manifest.permission.POST_NOTIFICATIONS};
+            //배열을 전달해서 해당 권한을 부여하도록 요청한다.
+            ActivityCompat.requestPermissions(this,
+                    permissions,
+                    0); //요청의 아이디
+            return;
+        }
+        //현재 재생 시간을 문자열로 얻어낸다.
+        int currentTime=mp.getCurrentPosition();
+        String info=String.format("%d min, %d sec",
+                TimeUnit.MILLISECONDS.toMinutes(currentTime),
+                TimeUnit.MILLISECONDS.toSeconds(currentTime)
+                        -TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS. toMinutes(currentTime)) );
+
+        //인텐트 전달자 객체
+        //PendingIntent pendingIntent = PendingIntent.getActivity(this, NOTI_ID, intent, PendingIntent.FLAG_MUTABLE);
+
+        Intent iPlay=new Intent(this, MusicService.class);
+        iPlay.setAction(AppConstants.ACTION_PLAY);
+        PendingIntent pIntentPlay=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
+
+        Intent iPause=new Intent(this, MusicService.class);
+        iPlay.setAction(AppConstants.ACTION_PAUSE);
+        PendingIntent pIntentPause=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
+
+        Intent iStop=new Intent(this, MusicService.class);
+        iPlay.setAction(AppConstants.ACTION_STOP);
+        PendingIntent pIntentStop=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
+
+        //띄울 알림을 구성하기
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.star_on) //알림의 아이콘
+                .setContentTitle("쇼팽 녹턴") //알림의 제목
+                .setContentText(info)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT) //알림의 우선순위
+                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Play",pIntentPlay))
+                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Pause",pIntentPause))
+                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Stop",pIntentStop))
+                .setProgress(mp.getDuration(), mp.getCurrentPosition(), false)
+                //.setContentIntent(pendingIntent)  //인텐트 전달자 객체
+                .setAutoCancel(false); //자동 취소 되는 알림인지 여부
+
+        //알림 만들기
+        Notification noti=builder.build();
+
+        //알림 메니저를 이용해서 알림을 띄운다.
+        NotificationManagerCompat.from(this).notify(NOTI_ID , noti);
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode){
+            case 0:
+                //권한을 부여 했다면
+                if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    //자동 취소 알림 띄우기
+                    makeManualCancelNoti();
+                }else{//권한을 부여 하지 않았다면
+                    Toast.makeText(this, "알림을 띄울 권한이 필요합니다.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                break;
+        }
     }
 }
 

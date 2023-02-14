@@ -11,6 +11,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/kotlin_test" />
             <option value="$PROJECT_DIR$/step21notification" />
             <option value="$PROJECT_DIR$/step22service" />
             <option value="$PROJECT_DIR$/step23mp3player" />

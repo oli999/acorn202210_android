@@ -18,7 +18,7 @@ rootProject.name = "MyAdroid"
 //include ':step02layout'
 //include ':step03view'
 //include ':step04activitymove'
-//include ':kotlin_test'
+include ':kotlin_test'
 //include ':step05listview'
 //include ':step05example'
 //include ':step06customadapter'
