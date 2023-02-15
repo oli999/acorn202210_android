@@ -11,14 +11,17 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
 import android.widget.Button;
@@ -30,12 +33,7 @@ import android.widget.Toast;
 
 import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPreparedListener {
-
-    //채널의 아이디
-    public static final String CHANNEL_ID="my_channel";
-    //알림의 아이디
-    public static final int NOTI_ID=999;
+public class MainActivity extends AppCompatActivity  {
 
     MediaPlayer mp;
     //재생 준비가 되었는지 여부
@@ -44,6 +42,34 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
     ProgressBar progress;
     TextView time;
     SeekBar seek;
+
+    //서비스의 참조값을 저장할 필드
+    MusicService service;
+    //서비스에 연결되었는지 여부
+    boolean isConnected;
+    //서비스 연결객체
+    ServiceConnection sConn=new ServiceConnection() {
+        //서비스에 연결이 되었을때 호출되는 메소드
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            //MusicService 객체의 참조값을 얻어와서 필드에 저장
+            //IBinder 객체를 원래 type 으로 casting
+            MusicService.LocalBinder lBinder=(MusicService.LocalBinder)binder;
+            service=lBinder.getService();
+            //연결되었다고 표시
+            isConnected=true;
+            //핸들러에 메세지 보내기
+            handler.removeMessages(0); //만일 핸들러가 동작중에 있으면 메세지를 제거하고
+            handler.sendEmptyMessageDelayed(0, 100); //다시 보내기
+        }
+        //서비스에 연결이 해제 되었을때 호출되는 메소드
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            //연결 해제 되었다고 표시
+            isConnected=false;
+        }
+    };
+
     //UI 를 주기적으로 업데이트 하기 위한 Handler
     Handler handler=new Handler(){
         /*
@@ -54,18 +80,25 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
          */
         @Override
         public void handleMessage(@NonNull Message msg) {
-            int currentTime=mp.getCurrentPosition();
-            //음악 재생이 시작된 이후에 주기적으로 계속 실행이 되어야 한다.
-            progress.setProgress(currentTime);
-            seek.setProgress(currentTime);
-            //현재 재생 시간을 TextView 에 출력하기
-            String info=String.format("%d min, %d sec",
-                    TimeUnit.MILLISECONDS.toMinutes(currentTime),
-                    TimeUnit.MILLISECONDS.toSeconds(currentTime)
-                    -TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS. toMinutes(currentTime)) );
-            time.setText(info);
-            //알림띄우기
-            makeManualCancelNoti();
+
+            if(service.isPrepared()){
+                //전체 재생시간
+                int maxTime=service.getMp().getDuration();
+                progress.setMax(maxTime);
+                seek.setMax(maxTime);
+                //현재 재생 위치
+                int currentTime=service.getMp().getCurrentPosition();
+                //음악 재생이 시작된 이후에 주기적으로 계속 실행이 되어야 한다.
+                progress.setProgress(currentTime);
+                seek.setProgress(currentTime);
+                //현재 재생 시간을 TextView 에 출력하기
+                String info=String.format("%d min, %d sec",
+                        TimeUnit.MILLISECONDS.toMinutes(currentTime),
+                        TimeUnit.MILLISECONDS.toSeconds(currentTime)
+                                -TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS. toMinutes(currentTime)) );
+                time.setText(info);
+            }
+
             //자신의 객체에 다시 빈 메세제를 보내서 handleMessage() 가 일정시간 이후에 호출 되도록 한다.
             handler.sendEmptyMessageDelayed(0, 100); // 1/10 초 이후에
         }
@@ -86,68 +119,46 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
 
         //재생 버튼
         playBtn=findViewById(R.id.playBtn);
-        //재생 버튼을 사용 불가 상태로 일단 만들어 놓고
-        playBtn.setEnabled(false);
+        //재생버튼을 눌렀을때
         playBtn.setOnClickListener(v->{
-            //만일 준비 되지 않았으면
-            if(!isPrepared){
-                return;//메소드를 여기서 종료
-            }
-            //음악재생 
-            mp.start();
-            //알림띄우기
-            makeManualCancelNoti();
-            //핸들러에 메세지 보내기
-            handler.sendEmptyMessageDelayed(0, 100);
+            //서비스의 initMusic() 메소드를 호출해서 음악이 재생 되도록 한다.
+            service.initMusic("http://192.168.0.31:9000/boot07/resources/upload/mp3piano.mp3");
         });
         //일시 중지 버튼
         ImageButton pauseBtn=findViewById(R.id.pauseBtn);
         pauseBtn.setOnClickListener(v->{
-            mp.pause();
+            service.pauseMusic();
         });
 
         //알림체널만들기
         createNotificationChannel();
+
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        //음악을 재생할 준비를 한다.
-        try {
-            mp= new MediaPlayer();
-            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            mp.setDataSource("http://192.168.0.31:9000/boot07/resources/upload/mp3piano.mp3");
-            mp.setOnPreparedListener(this);
-            //로딩하기
-            mp.prepareAsync();
-        }catch(Exception e){
-            Log.e("MainActivity", e.getMessage());
-        }
+        // MusicService 에 연결할 인텐트 객체
+        Intent intent=new Intent(this, MusicService.class);
+        //서비스 시작 시키기
+        //startService(intent);
+        // 액티비티의 bindService() 메소드를 이용해서 연결한다.
+        // 만일 서비스가 시작이 되지 않았으면 서비스 객체를 생성해서
+        // 시작할 준비만 된 서비스에 바인딩이 된다.
+        bindService(intent, sConn, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        mp.stop();
-        mp.release();
+        if(isConnected){
+            //서비스 바인딩 해제
+            unbindService(sConn);
+            isConnected=false;
+        }
     }
 
-    //재생할 준비가 끝나면 호출되는 메소드
-    @Override
-    public void onPrepared(MediaPlayer mp) {
-        Toast.makeText(this, "로딩완료!", Toast.LENGTH_SHORT).show();
-        isPrepared=true;
-        playBtn.setEnabled(true);
-        //전체 재생 시간을 ProgressBar 의 최대값으로 설정한다.
-        progress.setMax(mp.getDuration());
-        seek.setMax(mp.getDuration());
-        Log.e("전체 시간", "duration:"+mp.getDuration());
-        //Handler 객체에 메세지를 보내서 Handler 가 동작 되도록 한다.
-        //handler.sendEmptyMessageDelayed(0, 100);
-    }
     //앱의 사용자가 알림을 직접 관리 할수 있도록 알림 체널을 만들어야한다.
-
     public void createNotificationChannel(){
         //알림 체널을 지원하는 기기인지 확인해서
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -159,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
             //알림체널 객체를 얻어내서
             //알림을 1/10 초마다 새로 보낼 예정이기 때문에 진동은 울리지 않도록 IMPORTANCE_LOW 로 설정한다
             NotificationChannel channel=
-                    new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW);
+                    new NotificationChannel(AppConstants.CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW);
             //체널의 설명을 적고
             channel.setDescription(text);
             //알림 메니저 객체를 얻어내서
@@ -170,58 +181,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
         }
 
     }
-    //수동으로 취소하는 알림을 띄우는 메소드
-    public void makeManualCancelNoti(){
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            //권한이 필요한 목록을 배열에 담는다.
-            String[] permissions={Manifest.permission.POST_NOTIFICATIONS};
-            //배열을 전달해서 해당 권한을 부여하도록 요청한다.
-            ActivityCompat.requestPermissions(this,
-                    permissions,
-                    0); //요청의 아이디
-            return;
-        }
-        //현재 재생 시간을 문자열로 얻어낸다.
-        int currentTime=mp.getCurrentPosition();
-        String info=String.format("%d min, %d sec",
-                TimeUnit.MILLISECONDS.toMinutes(currentTime),
-                TimeUnit.MILLISECONDS.toSeconds(currentTime)
-                        -TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS. toMinutes(currentTime)) );
 
-        //인텐트 전달자 객체
-        //PendingIntent pendingIntent = PendingIntent.getActivity(this, NOTI_ID, intent, PendingIntent.FLAG_MUTABLE);
-
-        Intent iPlay=new Intent(this, MusicService.class);
-        iPlay.setAction(AppConstants.ACTION_PLAY);
-        PendingIntent pIntentPlay=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
-
-        Intent iPause=new Intent(this, MusicService.class);
-        iPlay.setAction(AppConstants.ACTION_PAUSE);
-        PendingIntent pIntentPause=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
-
-        Intent iStop=new Intent(this, MusicService.class);
-        iPlay.setAction(AppConstants.ACTION_STOP);
-        PendingIntent pIntentStop=PendingIntent.getService(this, 1, iPlay, PendingIntent.FLAG_MUTABLE);
-
-        //띄울 알림을 구성하기
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.star_on) //알림의 아이콘
-                .setContentTitle("쇼팽 녹턴") //알림의 제목
-                .setContentText(info)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT) //알림의 우선순위
-                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Play",pIntentPlay))
-                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Pause",pIntentPause))
-                .addAction(new NotificationCompat.Action(android.R.drawable.ic_media_play,"Stop",pIntentStop))
-                .setProgress(mp.getDuration(), mp.getCurrentPosition(), false)
-                //.setContentIntent(pendingIntent)  //인텐트 전달자 객체
-                .setAutoCancel(false); //자동 취소 되는 알림인지 여부
-
-        //알림 만들기
-        Notification noti=builder.build();
-
-        //알림 메니저를 이용해서 알림을 띄운다.
-        NotificationManagerCompat.from(this).notify(NOTI_ID , noti);
-    }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -229,8 +189,7 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnPre
             case 0:
                 //권한을 부여 했다면
                 if(grantResults[0] == PackageManager.PERMISSION_GRANTED){
-                    //자동 취소 알림 띄우기
-                    makeManualCancelNoti();
+
                 }else{//권한을 부여 하지 않았다면
                     Toast.makeText(this, "알림을 띄울 권한이 필요합니다.",
                             Toast.LENGTH_SHORT).show();
