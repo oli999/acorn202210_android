@@ -184,12 +184,10 @@ public class MainActivity extends AppCompatActivity  implements AdapterView.OnIt
         super.onStart();
         // MusicService 에 연결할 인텐트 객체
         Intent intent=new Intent(this, MusicService.class);
+        intent.setAction("Dummy Action");
         //서비스 시작 시키기
-        //startService(intent);
-        // 액티비티의 bindService() 메소드를 이용해서 연결한다.
-        // 만일 서비스가 시작이 되지 않았으면 서비스 객체를 생성해서
-        // 시작할 준비만 된 서비스에 바인딩이 된다.
-        bindService(intent, sConn, Context.BIND_AUTO_CREATE);
+        //이미 서비스가 동작 중이라면 onStartCommand() 메소드만 다시 호출된다.
+        startService(intent);
 
         pref= PreferenceManager.getDefaultSharedPreferences(this);
         sessionId=pref.getString("sessionId", "");
@@ -375,6 +373,10 @@ public class MainActivity extends AppCompatActivity  implements AdapterView.OnIt
                 infoText.setText(id+" 님 로그인중...");
                 //재생목록 받아오기
                 new MusicListTask().execute(AppConstants.BASE_URL+"/api/music/list");
+                // 액티비티의 bindService() 메소드를 이용해서 연결한다.
+                Intent intent=new Intent(MainActivity.this, MusicService.class);
+                intent.setAction("Dummy Action");
+                bindService(intent, sConn, Context.BIND_AUTO_CREATE);
             }else{
                 //로그인 액티비티로 이동
                 Intent intent=new Intent(MainActivity.this, LoginActivity.class);
