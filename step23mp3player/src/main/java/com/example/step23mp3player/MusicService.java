@@ -50,6 +50,11 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     int currentIndex;
 
     public OnMoveToListener listener;
+    //현재 재생 위치를 리턴하는 메소드 (액티비티가 호출해서 받아갈 예정)
+    public int getCurrentIndex() {
+        return currentIndex;
+    }
+
     // MainActivity 의 참조값이 OnMoveToListener type 으로 전달되는 메소드
     public void setOnMoveToListener(OnMoveToListener listener){
         this.listener=listener;
@@ -90,17 +95,47 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
 
     //재생하는 메소드
     public void playMusic() {
+        //만일 음악이 준비 되지 않았다면
+        if(!isPrepared)return; //메소드를 여기서 끝내라
         mp.start();
     }
 
     //일시정지하는 메소드
     public void pauseMusic() {
+        //만일 음악이 준비 되지 않았다면
+        if(!isPrepared)return; //메소드를 여기서 끝내라
         mp.pause();
     }
 
     //정지하는 메소드
     public void stopMusic() {
+        //만일 음악이 준비 되지 않았다면
+        if(!isPrepared)return; //메소드를 여기서 끝내라
         mp.stop();
+    }
+    //뒤로 되감는 기능
+    public void rewMusic(){
+        //만일 음악이 준비 되지 않았다면
+        if(!isPrepared)return; //메소드를 여기서 끝내라
+        //현재 재생 위치에서 뒤로 10초 이동
+        int current=mp.getCurrentPosition();
+        int backPoint=current-10*1000;
+        //음수가 되면 안되기때문에 backPoint 가 0 이상일때만 동작하도록 한다.
+        if(backPoint >= 0){
+            mp.seekTo(backPoint);
+        }
+    }
+    //앞으로 감는 기능
+    public void ffMusic(){
+        //만일 음악이 준비 되지 않았다면
+        if(!isPrepared)return; //메소드를 여기서 끝내라
+        //현재 재생 위치에서 앞으로 10초 이동
+        int current=mp.getCurrentPosition();
+        int frontPoint=current+10*1000;
+        //전체 재생 시간보다는 작아야 되기 때문에
+        if(frontPoint <= mp.getDuration()){
+            mp.seekTo(frontPoint);
+        }
     }
 
     //재생이 준비되었는지 여부를 리턴하는 메소드
