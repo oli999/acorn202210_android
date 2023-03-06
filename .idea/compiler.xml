@@ -23,7 +23,6 @@
       <module name="MyAdroid.step15webview" target="11" />
       <module name="MyAdroid.step15webview2" target="11" />
       <module name="MyAdroid.step16asynctask" target="11" />
-      <module name="MyAdroid.step19callphone" target="11" />
       <module name="MyAdroid.step20contentprovider2" target="11" />
       <module name="MyAdroid.test01" target="11" />
       <module name="MyAdroid.test02" target="11" />
