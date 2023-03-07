@@ -4,6 +4,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -24,6 +25,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -452,6 +454,25 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String s) {
             super.onPostExecute(s);
+            //s 는 {"isSuccess":true} or {"isSuccess":false} 형식의 문자열이다.
+            try {
+                JSONObject obj = new JSONObject(s);
+                boolean isSuccess=obj.getBoolean("isSuccess");
+                if(isSuccess){
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("알림")
+                            .setMessage("업로드 했습니다.")
+                            .setNeutralButton("확인", null)
+                            .create()
+                            .show();
+                }else{
+                    Toast.makeText(MainActivity.this, "실패!", Toast.LENGTH_SHORT).show();
+                }
+            }catch (JSONException je){
+                Log.e("UploadTask", je.getMessage());
+                Toast.makeText(MainActivity.this, "응답된 문자열이 json 문자열이 아닙니다.", Toast.LENGTH_SHORT).show();
+            }
+
         }
     }
 }
