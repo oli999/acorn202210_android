@@ -55,6 +55,8 @@ public class MainActivity extends AppCompatActivity {
     //필요한 필드
     String sessionId, id;
     SharedPreferences pref;
+    //최초 사진을 찍었는지 여부
+    boolean isTakePicured=false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,8 +116,10 @@ public class MainActivity extends AppCompatActivity {
 
         pref= PreferenceManager.getDefaultSharedPreferences(this);
         sessionId=pref.getString("sessionId", "");
+
         //로그인 했는지 체크하기
         new LoginCheckTask().execute(AppConstants.BASE_URL+"/music/logincheck");
+
     }
 
     @Override
@@ -281,11 +285,32 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(Boolean isLogin) {
             super.onPostExecute(isLogin);
+
             //만일 로그인 하지 않았다면
             if(!isLogin){
                 //로그인 액티비티로 이동
                 Intent intent=new Intent(MainActivity.this, LoginActivity.class);
                 startActivity(intent);
+            }else if(isLogin && !isTakePicured){//만일 로그인을 했고 아직 사진을 찍은 상태가 아니라면
+                //사진을 찍고 싶다는 Intent 객체 작성하기
+                Intent intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                //외부 저장 장치의 절대 경로
+                String absolutePath=getExternalFilesDir(null).getAbsolutePath();
+                //파일명 구성
+                String fileName= UUID.randomUUID().toString()+".jpg";
+                //생성할 이미지의 전체 경로
+                imagePath=absolutePath+"/"+fileName;
+                //이미지 파일을 저장할 File 객체
+                File photoFile=new File(imagePath);
+                //File 객체를 Uri 로 포장을 한다.
+                //Uri uri= Uri.fromFile(photoFile);
+                Uri uri=FileProvider.getUriForFile(MainActivity.this,
+                        "com.example.step25imagecapture.fileprovider",
+                        photoFile);
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+                startActivityForResult(intent, 1);
+                //사진을 이미 찍었다고 표시 한다.
+                isTakePicured=true;
             }
         }
     }
@@ -462,7 +487,10 @@ public class MainActivity extends AppCompatActivity {
                     new AlertDialog.Builder(MainActivity.this)
                             .setTitle("알림")
                             .setMessage("업로드 했습니다.")
-                            .setNeutralButton("확인", null)
+                            .setNeutralButton("확인", (dialog, which) -> {
+                                //액티비티를 종료 시켜서 GalleryListActivity 가 다시 활성화 되도록한다.
+                                MainActivity.this.finish();
+                            })
                             .create()
                             .show();
                 }else{
