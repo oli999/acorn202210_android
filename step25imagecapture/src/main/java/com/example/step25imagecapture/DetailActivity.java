@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,8 +34,6 @@ import java.util.UUID;
 public class DetailActivity extends AppCompatActivity implements MyHttpUtil.RequestListener {
 
     ActivityDetailBinding binding;
-    SharedPreferences pref;
-    String sessionId;
     GalleryDto dto;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,9 +60,6 @@ public class DetailActivity extends AppCompatActivity implements MyHttpUtil.Requ
         binding.caption.setText(dto.getCaption());
         binding.regdate.setText(dto.getRegdate());
 
-        pref=PreferenceManager.getDefaultSharedPreferences(this);
-        sessionId=pref.getString("sessionId", "");
-
         //삭제 버튼에 리스너 등록
         binding.deleteBtn.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
@@ -72,6 +68,12 @@ public class DetailActivity extends AppCompatActivity implements MyHttpUtil.Requ
                         //삭제할 갤러리 사진의 Primary Key 를 이용해서 삭제 작업을 진행한다.
                         int num=dto.getNum();
 
+                        Map<String, String> map=new HashMap<>();
+                        //삭제할 번호를 Map 에 담는다.
+                        map.put("num", Integer.toString(num));
+                        //삭제 요청하기
+                        new MyHttpUtil(this).sendPostRequest(2,
+                                AppConstants.BASE_URL+"/api/gallery/delete", map, this);
                     })
                     .setNegativeButton("아니요", null)
                     .create()
@@ -82,123 +84,53 @@ public class DetailActivity extends AppCompatActivity implements MyHttpUtil.Requ
     @Override
     protected void onStart() {
         super.onStart();
-        //우리의 서버에 root 요청
+        //로그인 체크
         new MyHttpUtil(this).sendGetRequest(1,
-                AppConstants.BASE_URL+"/", null, this);
+                AppConstants.BASE_URL+"/music/logincheck", null, this);
     }
 
     @Override
     public void onSuccess(int requestId, String data) {
-        Log.d("테스트", data);
+        switch (requestId){
+            case 1://로그인 체크의 결과
+                try{
+                    //json 문자열을 이용해서 JSONObject 객체를 생성한다.
+                    JSONObject obj=new JSONObject(data);
+                    //로그인 여부
+                    boolean isLogin=obj.getBoolean("isLogin");
+                    if(isLogin){
+                        //로그인된 아이디를 읽어와서
+                        String id=obj.getString("id");
+                        //갤러리 writer 와 비교해서 같으면 삭제 버튼을 보이게 한다.
+                        if(id.equals(dto.getWriter())){
+                            //삭제 버튼을 보이도록 한다.
+                            binding.deleteBtn.setVisibility(View.VISIBLE);
+                        }
+                    }
+                }catch (JSONException je){
+                    Log.e("onPostExecute()", je.getMessage());
+                }
+                break;
+            case 2://삭제 요청에 대한 결과
+                //data 는 {"isSuccess":true} 형식의 json 문자열이다. 필요하다면 여기서 사용하면 된다.
+
+                //DetailActivity 를 종료시켜서 GalleryListActivity  가 다시 활성화 되도록 한다.
+                finish();
+                break;
+        }
     }
 
     @Override
     public void onFail(int requestId, Map<String, Object> result) {
+        //에러 메세지를 읽어와서
+        String errMsg=(String)result.get("errMsg");
+        switch (requestId){
+            case 1:
 
-    }
+                break;
+            case 2:
 
-
-    //로그인 여부를 체크하는 작업을 할 비동기 task
-    class LoginCheckTask extends AsyncTask<String, Void, String> {
-
-        @Override
-        protected String doInBackground(String... strings) {
-            //로그인 체크 url
-            String requestUrl=strings[0];
-            //서버가 http 요청에 대해서 응답하는 문자열을 누적할 객체
-            StringBuilder builder=new StringBuilder();
-            HttpURLConnection conn=null;
-            InputStreamReader isr=null;
-            BufferedReader br=null;
-            boolean isLogin=false;
-            try{
-                //URL 객체 생성
-                URL url=new URL(requestUrl);
-                //HttpURLConnection 객체의 참조값 얻어오기
-                conn=(HttpURLConnection)url.openConnection();
-                if(conn!=null){//연결이 되었다면
-                    conn.setConnectTimeout(20000); //응답을 기다리는 최대 대기 시간
-                    conn.setRequestMethod("GET");//Default 설정
-                    conn.setUseCaches(false);//케쉬 사용 여부
-                    //App 에 저장된 session id 가 있다면 요청할때 쿠키로 같이 보내기
-                    if(!sessionId.equals("")) {
-                        // JSESSIONID=xxx 형식의 문자열을 쿠키로 보내기
-                        conn.setRequestProperty("Cookie", sessionId);
-                    }
-
-                    //응답 코드를 읽어온다.
-                    int responseCode=conn.getResponseCode();
-
-                    if(responseCode==200){//정상 응답이라면...
-                        //서버가 출력하는 문자열을 읽어오기 위한 객체
-                        isr=new InputStreamReader(conn.getInputStream());
-                        br=new BufferedReader(isr);
-                        //반복문 돌면서 읽어오기
-                        while(true){
-                            //한줄씩 읽어들인다.
-                            String line=br.readLine();
-                            //더이상 읽어올 문자열이 없으면 반복문 탈출
-                            if(line==null)break;
-                            //읽어온 문자열 누적 시키기
-                            builder.append(line);
-                        }
-                    }
-                }
-                //서버가 응답한 쿠키 목록을 읽어온다.
-                List<String> cookList=conn.getHeaderFields().get("Set-Cookie");
-                //만일 쿠키가 존대 한다면
-                if(cookList != null){
-                    //반복문 돌면서
-                    for(String tmp : cookList){
-                        //session id 가 들어 있는 쿠키를 찾아내서
-                        if(tmp.contains("JSESSIONID")){
-                            //session id 만 추출해서
-                            String sessionId=tmp.split(";")[0];
-                            //SharedPreferences 을 편집할수 있는 객체를 활용해서
-                            SharedPreferences.Editor editor=pref.edit();
-                            //sessionId 라는 키값으로 session id 값을 저장한다.
-                            editor.putString("sessionId", sessionId);
-                            editor.apply();//apply() 는 비동기로 저장하기 때문에 실행의 흐름이 잡혀 있지 않다(지연이 없음)
-                            //필드에도 담아둔다.
-                            DetailActivity.this.sessionId=sessionId;
-                        }
-                    }
-                }
-
-            }catch(Exception e){//예외가 발생하면
-                Log.e("LoginCheckTask", e.getMessage());
-            }finally {
-                try{
-                    if(isr!=null)isr.close();
-                    if(br!=null)br.close();
-                    if(conn!=null)conn.disconnect();
-                }catch(Exception e){}
-            }
-            //서버에서 응답받은 문자열을 리턴한다.
-            return builder.toString();
-        }
-
-        @Override
-        protected void onPostExecute(String jsonStr) {
-            super.onPostExecute(jsonStr);
-            Log.d("jsonStr", jsonStr);
-            try{
-                //json 문자열을 이용해서 JSONObject 객체를 생성한다.
-                JSONObject obj=new JSONObject(jsonStr);
-                //로그인 여부
-                boolean isLogin=obj.getBoolean("isLogin");
-                if(isLogin){
-                    //로그인된 아이디를 읽어와서
-                    String id=obj.getString("id");
-                    //갤러리 writer 와 비교해서 같으면 삭제 버튼을 보이게 한다.
-                    if(id.equals(dto.getWriter())){
-                        //삭제 버튼을 보이도록 한다.
-                        binding.deleteBtn.setVisibility(View.VISIBLE);
-                    }
-                }
-            }catch (JSONException je){
-                Log.e("onPostExecute()", je.getMessage());
-            }
+                break;
         }
     }
 

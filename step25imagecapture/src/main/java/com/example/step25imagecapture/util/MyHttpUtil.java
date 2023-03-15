@@ -26,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -318,6 +319,8 @@ public class MyHttpUtil {
         private int requestId;
         private String requestUrl;
         private RequestListener listener;
+        //에러 메세지를 담을 필드
+        private String errMsg;
 
         public void setRequestId(int requestId) {
             this.requestId = requestId;
@@ -410,9 +413,13 @@ public class MyHttpUtil {
                     }else if(responseCode >= 400 && responseCode < 500){
                         //요청 오류인 경우에 이 요청은 실패!
 
+                        //예외 발생 시키기
+                        throw new RuntimeException("잘못된 요청에 의해 작업이 실패 되었습니다.");
                     }else if(responseCode == 500){
                         //서버의 잘못된 동작으로 인한 요청 실패!
 
+                        //예외 발생 시키기
+                        throw new RuntimeException("서버의 오류로 인해 작업이 실패 되었습니다. 조속히 복구 하겠습니다.");
                     }
                 }
                 //서버가 응답한 쿠키 목록을 읽어온다.
@@ -445,6 +452,9 @@ public class MyHttpUtil {
 
             }catch(Exception e){
                 Log.e("MyHttpUtil.sendGetRequest()", e.getMessage());
+                //예외가 발생한 경우 이 작업은 실패이다.
+                errMsg=e.getMessage(); //예외 메세지를 필드에 담고
+                this.cancel(true); //이 비동기 작업을 취소 시킨다.
             }finally {
                 try{
                     if(isr!=null)isr.close();
@@ -454,6 +464,16 @@ public class MyHttpUtil {
             }
             //응답받은 문자열을 리턴한다.
             return builder.toString();
+        }
+        //비동기 작업이 취소 되면 호출되는 메소드
+        @Override
+        protected void onCancelled() {
+            super.onCancelled();
+            //예외 메세지를 Map 에 담아서
+            Map<String, Object> map=new HashMap<>();
+            map.put("errMsg", errMsg);
+            //리스너에 전달한다.
+            listener.onFail(requestId, map);
         }
 
         @Override
