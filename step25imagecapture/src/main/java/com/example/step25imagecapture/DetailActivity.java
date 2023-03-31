@@ -123,13 +123,23 @@ public class DetailActivity extends AppCompatActivity implements MyHttpUtil.Requ
     @Override
     public void onFail(int requestId, Map<String, Object> result) {
         //에러 메세지를 읽어와서
-        String errMsg=(String)result.get("errMsg");
+        String errMsg=(String)result.get(MyHttpUtil.ERR_MSG);
         switch (requestId){
             case 1:
-
+                new AlertDialog.Builder(this)
+                        .setTitle("로그인 체크 에러")
+                        .setMessage(errMsg)
+                        .setNeutralButton("확인", null)
+                        .create()
+                        .show();
                 break;
             case 2:
-
+                new AlertDialog.Builder(this)
+                        .setTitle("Gallery 삭제 에러")
+                        .setMessage(errMsg)
+                        .setNeutralButton("확인", null)
+                        .create()
+                        .show();
                 break;
         }
     }

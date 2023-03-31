@@ -19,7 +19,6 @@
       <module name="MyAdroid.step11bottomnavi" target="11" />
       <module name="MyAdroid.step12broadcastreceiver" target="11" />
       <module name="MyAdroid.step13sharedpref" target="11" />
-      <module name="MyAdroid.step14sqlite" target="11" />
       <module name="MyAdroid.step15webview" target="11" />
       <module name="MyAdroid.step15webview2" target="11" />
       <module name="MyAdroid.step16asynctask" target="11" />

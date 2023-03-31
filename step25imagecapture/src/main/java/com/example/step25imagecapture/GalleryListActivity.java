@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
+import android.widget.Toast;
 
 import com.example.step25imagecapture.databinding.ActivityGalleryListBinding;
 import com.example.step25imagecapture.util.MyHttpUtil;
@@ -132,6 +133,10 @@ public class GalleryListActivity extends AppCompatActivity implements View.OnCli
     @Override
     public void onFail(int requestId, Map<String, Object> result) {
         progress.dismiss();
+        //예외 메세지 얻어내기
+        String errMsg=(String)result.get(MyHttpUtil.ERR_MSG);
+        //토스트로 출력하기
+        Toast.makeText(this, errMsg, Toast.LENGTH_LONG).show();
     }
 
 }
